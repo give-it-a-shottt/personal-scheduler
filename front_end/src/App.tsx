@@ -2,16 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { WeeklyCalendar } from './components/WeeklyCalendar';
 import { BookModal } from './components/BookModal';
 import { VideoModal } from './components/VideoModal';
+import { TaskDetailModal } from './components/TaskDetailModal';
+import { TodayTasks } from './components/TodayTasks';
 import type {
   AnyLearningMaterial,
   BookFormData,
   VideoFormData,
   SystemStatus,
   WeeklyPlan,
+  DailyTask,
 } from './types';
-import { materialStorage, completedTasksStorage } from './utils/storage';
+import { materialStorage, completedTasksStorage } from './utils/supabaseStorage';
 import { scheduleBook, scheduleVideo, generateWeeklyPlan, calculateProgress } from './utils/scheduler';
 import { formatDuration } from './utils/videoParser';
+// 마이그레이션 함수를 전역에서 사용할 수 있도록 import
+import './utils/migrate';
 
 function App() {
   // 상태 관리
@@ -19,6 +24,11 @@ function App() {
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<{
+    task: DailyTask;
+    date: string;
+  } | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     isSaving: false,
     hasUnsavedChanges: false,
@@ -26,11 +36,15 @@ function App() {
 
   // 초기 데이터 로드
   useEffect(() => {
-    const loadedMaterials = materialStorage.getAll();
-    const loadedCompletedTasks = completedTasksStorage.getAll();
+    const loadData = async () => {
+      const loadedMaterials = await materialStorage.getAll();
+      const loadedCompletedTasks = await completedTasksStorage.getAll();
 
-    setMaterials(loadedMaterials);
-    setCompletedTasks(loadedCompletedTasks);
+      setMaterials(loadedMaterials);
+      setCompletedTasks(loadedCompletedTasks);
+    };
+
+    loadData();
   }, []);
 
   // 주간 계획 생성
@@ -39,7 +53,7 @@ function App() {
   }, [materials]);
 
   // 책 등록 처리
-  const handleAddBook = (formData: BookFormData) => {
+  const handleAddBook = async (formData: BookFormData) => {
     setSystemStatus({ ...systemStatus, isSaving: true });
 
     const newBook = scheduleBook(
@@ -50,7 +64,7 @@ function App() {
       formData.description
     );
 
-    const result = materialStorage.add(newBook);
+    const result = await materialStorage.add(newBook);
 
     if (result.success) {
       setMaterials([...materials, newBook]);
@@ -75,7 +89,7 @@ function App() {
   };
 
   // 동영상 등록 처리
-  const handleAddVideo = (formData: VideoFormData) => {
+  const handleAddVideo = async (formData: VideoFormData) => {
     setSystemStatus({ ...systemStatus, isSaving: true });
 
     const startDate = new Date();
@@ -96,7 +110,7 @@ function App() {
       formData.description
     );
 
-    const result = materialStorage.add(newVideo);
+    const result = await materialStorage.add(newVideo);
 
     if (result.success) {
       setMaterials([...materials, newVideo]);
@@ -121,16 +135,16 @@ function App() {
   };
 
   // 과제 완료/미완료 토글
-  const handleTaskToggle = (
+  const handleTaskToggle = async (
     materialId: string,
     date: string,
     completed: boolean
   ) => {
     if (completed) {
-      completedTasksStorage.markCompleted(materialId, date);
+      await completedTasksStorage.markCompleted(materialId, date);
       setCompletedTasks(new Set([...completedTasks, `${materialId}-${date}`]));
     } else {
-      completedTasksStorage.markIncomplete(materialId, date);
+      await completedTasksStorage.markIncomplete(materialId, date);
       const newSet = new Set(completedTasks);
       newSet.delete(`${materialId}-${date}`);
       setCompletedTasks(newSet);
@@ -139,17 +153,21 @@ function App() {
     // 책 진행도 업데이트
     const material = materials.find((m) => m.id === materialId);
     if (material && material.type === 'book') {
-      // 완료된 최대 페이지 계산
-      const allCompleted = Array.from(completedTasks);
       // 로직 간단화: 여기서는 단순히 저장만 함
       // 실제로는 완료된 페이지를 계산해서 업데이트해야 함
     }
   };
 
+  // 과제 클릭 핸들러
+  const handleTaskClick = (task: DailyTask, date: string) => {
+    setSelectedTask({ task, date });
+    setIsTaskDetailOpen(true);
+  };
+
   // 학습 자료 삭제
-  const handleDeleteMaterial = (id: string) => {
+  const handleDeleteMaterial = async (id: string) => {
     if (confirm('정말 이 학습 자료를 삭제하시겠습니까?')) {
-      const result = materialStorage.delete(id);
+      const result = await materialStorage.delete(id);
 
       if (result.success) {
         setMaterials(materials.filter((m) => m.id !== id));
@@ -166,7 +184,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-8 relative z-10">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 헤더 */}
         <header className="glass-card p-6">
@@ -339,10 +357,20 @@ function App() {
           </div>
         )}
 
+        {/* 오늘의 학습 */}
+        {materials.length > 0 && (
+          <TodayTasks
+            weeklyPlan={weeklyPlan}
+            completedTasks={completedTasks}
+            onTaskClick={handleTaskClick}
+          />
+        )}
+
         {/* 주간 캘린더 */}
         <WeeklyCalendar
           weeklyPlan={weeklyPlan}
           onTaskToggle={handleTaskToggle}
+          onTaskClick={handleTaskClick}
           completedTasks={completedTasks}
         />
 
@@ -388,6 +416,30 @@ function App() {
         onClose={() => setIsVideoModalOpen(false)}
         onSubmit={handleAddVideo}
       />
+
+      {/* 과제 상세 모달 */}
+      {selectedTask && (
+        <TaskDetailModal
+          isOpen={isTaskDetailOpen}
+          onClose={() => {
+            setIsTaskDetailOpen(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask.task}
+          onToggle={() => {
+            const taskKey = `${selectedTask.task.materialId}-${selectedTask.date}`;
+            const isCurrentlyCompleted = completedTasks.has(taskKey);
+            handleTaskToggle(
+              selectedTask.task.materialId,
+              selectedTask.date,
+              !isCurrentlyCompleted
+            );
+          }}
+          isCompleted={completedTasks.has(
+            `${selectedTask.task.materialId}-${selectedTask.date}`
+          )}
+        />
+      )}
     </div>
   );
 }

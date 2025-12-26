@@ -5,12 +5,14 @@ import { dateUtils } from '../utils/scheduler';
 interface WeeklyCalendarProps {
   weeklyPlan: WeeklyPlan;
   onTaskToggle: (materialId: string, date: string, completed: boolean) => void;
+  onTaskClick: (task: DailyTask, date: string) => void;
   completedTasks: Set<string>;
 }
 
 export function WeeklyCalendar({
   weeklyPlan,
   onTaskToggle,
+  onTaskClick,
   completedTasks,
 }: WeeklyCalendarProps) {
   const today = useMemo(() => dateUtils.formatDate(new Date()), []);
@@ -36,6 +38,7 @@ export function WeeklyCalendar({
             day={day}
             isToday={day.date === today}
             onTaskToggle={onTaskToggle}
+            onTaskClick={onTaskClick}
             completedTasks={completedTasks}
           />
         ))}
@@ -48,6 +51,7 @@ interface DayCardProps {
   day: DailyLearningPlan;
   isToday: boolean;
   onTaskToggle: (materialId: string, date: string, completed: boolean) => void;
+  onTaskClick: (task: DailyTask, date: string) => void;
   completedTasks: Set<string>;
 }
 
@@ -55,6 +59,7 @@ function DayCard({
   day,
   isToday,
   onTaskToggle,
+  onTaskClick,
   completedTasks,
 }: DayCardProps) {
   const isPast = useMemo(() => {
@@ -123,6 +128,7 @@ function DayCard({
               task={task}
               date={day.date}
               onToggle={onTaskToggle}
+              onClick={onTaskClick}
               isCompleted={completedTasks.has(`${task.materialId}-${day.date}`)}
             />
           ))
@@ -136,15 +142,15 @@ interface TaskItemProps {
   task: DailyTask;
   date: string;
   onToggle: (materialId: string, date: string, completed: boolean) => void;
+  onClick: (task: DailyTask, date: string) => void;
   isCompleted: boolean;
 }
 
-function TaskItem({ task, date, onToggle, isCompleted }: TaskItemProps) {
+function TaskItem({ task, date, onToggle, onClick, isCompleted }: TaskItemProps) {
   return (
-    <button
-      onClick={() => onToggle(task.materialId, date, !isCompleted)}
+    <div
       className={`
-        w-full text-left p-3 rounded-lg border transition-all
+        w-full p-3 rounded-lg border transition-all
         ${
           isCompleted
             ? 'bg-white/10 border-white/20'
@@ -154,13 +160,17 @@ function TaskItem({ task, date, onToggle, isCompleted }: TaskItemProps) {
     >
       <div className="flex items-start gap-2">
         {/* 체크박스 (휴리스틱 #6: 직관적 인터랙션) */}
-        <div
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(task.materialId, date, !isCompleted);
+          }}
           className={`
             flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all mt-0.5
             ${
               isCompleted
                 ? 'bg-primary-500 border-primary-500'
-                : 'border-white/30'
+                : 'border-white/30 hover:border-white/50'
             }
           `}
         >
@@ -179,9 +189,12 @@ function TaskItem({ task, date, onToggle, isCompleted }: TaskItemProps) {
               />
             </svg>
           )}
-        </div>
+        </button>
 
-        <div className="flex-1 min-w-0">
+        <button
+          onClick={() => onClick(task, date)}
+          className="flex-1 min-w-0 text-left"
+        >
           <div
             className={`
               text-sm font-medium
@@ -191,8 +204,8 @@ function TaskItem({ task, date, onToggle, isCompleted }: TaskItemProps) {
             {task.materialTitle}
           </div>
           <div className="text-xs text-white/60 mt-1">{task.description}</div>
-        </div>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }

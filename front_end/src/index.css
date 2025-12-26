@@ -9,8 +9,34 @@
 
   body {
     @apply m-0 min-h-screen;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background:
+      radial-gradient(ellipse at top, #1e1b4b 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, #312e81 0%, transparent 50%),
+      linear-gradient(180deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
     background-attachment: fixed;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+      radial-gradient(2px 2px at 20% 30%, white, transparent),
+      radial-gradient(2px 2px at 60% 70%, white, transparent),
+      radial-gradient(1px 1px at 50% 50%, white, transparent),
+      radial-gradient(1px 1px at 80% 10%, white, transparent),
+      radial-gradient(2px 2px at 90% 60%, white, transparent),
+      radial-gradient(1px 1px at 33% 80%, white, transparent),
+      radial-gradient(1px 1px at 15% 55%, white, transparent);
+    background-size: 200% 200%, 200% 200%, 300% 300%, 250% 250%, 200% 200%, 300% 300%, 250% 250%;
+    background-position: 0% 0%, 40% 40%, 50% 50%, 80% 10%, 90% 60%, 33% 80%, 15% 55%;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 0;
   }
 }
 
