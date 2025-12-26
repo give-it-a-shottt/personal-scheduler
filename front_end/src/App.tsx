@@ -56,9 +56,13 @@ function App() {
   const handleAddBook = async (formData: BookFormData) => {
     setSystemStatus({ ...systemStatus, isSaving: true });
 
+    const totalPages = formData.endPage - formData.startPage + 1;
+
     const newBook = scheduleBook(
       formData.title,
-      formData.totalPages,
+      formData.startPage,
+      formData.endPage,
+      totalPages,
       new Date(formData.startDate),
       new Date(formData.endDate),
       formData.description
@@ -92,9 +96,8 @@ function App() {
   const handleAddVideo = async (formData: VideoFormData) => {
     setSystemStatus({ ...systemStatus, isSaving: true });
 
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(startDate.getDate() + formData.weeks * 7 - 1);
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
 
     const totalDuration = formData.sections.reduce(
       (sum, section) => sum + section.duration,

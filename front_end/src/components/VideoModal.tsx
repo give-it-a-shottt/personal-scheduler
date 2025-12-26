@@ -9,15 +9,28 @@ interface VideoModalProps {
 }
 
 export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
+  // 오늘 날짜와 4주 후 날짜를 기본값으로 설정
+  const getDefaultDates = () => {
+    const today = new Date();
+    const fourWeeksLater = new Date(today);
+    fourWeeksLater.setDate(today.getDate() + 27); // 4주 - 1일
+
+    return {
+      startDate: today.toISOString().split('T')[0],
+      endDate: fourWeeksLater.toISOString().split('T')[0],
+    };
+  };
+
   const [formData, setFormData] = useState<{
     title: string;
     videoText: string;
-    weeks: number;
+    startDate: string;
+    endDate: string;
     description: string;
   }>({
     title: '',
     videoText: '',
-    weeks: 4,
+    ...getDefaultDates(),
     description: '',
   });
 
@@ -39,9 +52,14 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
 
   // 하루 학습량 계산
   const dailyStats = useMemo(() => {
-    if (!parsedData) return null;
+    if (!parsedData || !formData.startDate || !formData.endDate) return null;
 
-    const totalDays = formData.weeks * 7;
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    if (totalDays <= 0) return null;
+
     const sectionsPerDay = Math.ceil(parsedData.totalCount / totalDays);
     const minutesPerDay = Math.ceil(parsedData.totalDuration / totalDays);
 
@@ -49,8 +67,9 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
       sectionsPerDay,
       minutesPerDay,
       timePerDay: formatDuration(minutesPerDay),
+      totalDays,
     };
-  }, [parsedData, formData.weeks]);
+  }, [parsedData, formData.startDate, formData.endDate]);
 
   // 휴리스틱 #3: ESC 키로 모달 닫기
   useEffect(() => {
@@ -80,8 +99,20 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
       newErrors.videoText = '올바른 강의 목록 형식이 아닙니다.';
     }
 
-    if (formData.weeks < 1 || formData.weeks > 52) {
-      newErrors.weeks = '완료 기간은 1주에서 52주 사이여야 합니다.';
+    if (!formData.startDate) {
+      newErrors.startDate = '시작 날짜를 선택해주세요.';
+    }
+
+    if (!formData.endDate) {
+      newErrors.endDate = '종료 날짜를 선택해주세요.';
+    }
+
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      if (end <= start) {
+        newErrors.endDate = '종료 날짜는 시작 날짜보다 이후여야 합니다.';
+      }
     }
 
     setErrors(newErrors);
@@ -98,7 +129,8 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
     const submitData: VideoFormData = {
       title: formData.title,
       sections: parsedData.sections,
-      weeks: formData.weeks,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
       description: formData.description,
     };
 
@@ -111,7 +143,7 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
     setFormData({
       title: '',
       videoText: '',
-      weeks: 4,
+      ...getDefaultDates(),
       description: '',
     });
     setErrors({});
@@ -266,36 +298,59 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
               </div>
             )}
 
-            {/* 완료 기간 */}
-            <div>
-              <label
-                htmlFor="weeks"
-                className="block text-sm font-medium text-white mb-2"
-              >
-                완료 기간 (주 단위) *
-              </label>
-              <input
-                id="weeks"
-                type="number"
-                min="1"
-                max="52"
-                value={formData.weeks}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    weeks: parseInt(e.target.value) || 4,
-                  })
-                }
-                className="glass-input"
-              />
-              {errors.weeks && (
-                <p className="mt-1 text-sm text-red-300">{errors.weeks}</p>
-              )}
+            {/* 학습 기간 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="startDate"
+                  className="block text-sm font-medium text-white mb-2"
+                >
+                  시작 날짜 *
+                </label>
+                <input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      startDate: e.target.value,
+                    })
+                  }
+                  className="glass-input"
+                />
+                {errors.startDate && (
+                  <p className="mt-1 text-sm text-red-300">{errors.startDate}</p>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="endDate"
+                  className="block text-sm font-medium text-white mb-2"
+                >
+                  종료 날짜 *
+                </label>
+                <input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      endDate: e.target.value,
+                    })
+                  }
+                  className="glass-input"
+                />
+                {errors.endDate && (
+                  <p className="mt-1 text-sm text-red-300">{errors.endDate}</p>
+                )}
+              </div>
             </div>
 
             {/* 하루 학습량 표시 (휴리스틱 #1, #6) */}
             {dailyStats && (
-              <div className="glass-card bg-primary-500/20 p-4">
+              <div className="glass-card bg-primary-500/20 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-white">
                   <svg
                     className="w-5 h-5"
@@ -311,6 +366,7 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
                     />
                   </svg>
                   <div className="text-sm">
+                    총 <strong className="text-lg">{dailyStats.totalDays}</strong>일 동안
                     하루{' '}
                     <strong className="text-lg">
                       {dailyStats.sectionsPerDay}

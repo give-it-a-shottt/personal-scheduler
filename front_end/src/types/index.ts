@@ -15,8 +15,10 @@ export interface LearningMaterial {
 // 책 학습 자료
 export interface BookMaterial extends LearningMaterial {
   type: 'book';
-  totalPages: number;
-  currentPage: number;
+  startPage: number; // 시작 페이지
+  endPage: number; // 종료 페이지
+  totalPages: number; // 총 페이지 수 (endPage - startPage + 1)
+  currentPage: number; // 현재 읽은 페이지 (초기값: startPage - 1)
   startDate: string; // ISO 8601
   endDate: string;   // ISO 8601
   pagesPerDay: number; // 자동 계산됨
@@ -100,7 +102,8 @@ export interface ModalState {
 // 책 등록 폼 데이터
 export interface BookFormData {
   title: string;
-  totalPages: number;
+  startPage: number; // 시작 페이지
+  endPage: number; // 종료 페이지
   startDate: string;
   endDate: string;
   description?: string;
@@ -110,7 +113,8 @@ export interface BookFormData {
 export interface VideoFormData {
   title: string;
   sections: VideoSection[];
-  weeks: number; // 몇 주 안에 완료할지
+  startDate: string; // 시작 날짜 (YYYY-MM-DD)
+  endDate: string; // 종료 날짜 (YYYY-MM-DD)
   description?: string;
 }
 

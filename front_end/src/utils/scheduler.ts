@@ -73,6 +73,8 @@ export const dateUtils = {
 // 책 학습 자동 스케줄링
 export function scheduleBook(
   title: string,
+  startPage: number,
+  endPage: number,
   totalPages: number,
   startDate: Date,
   endDate: Date,
@@ -86,8 +88,10 @@ export function scheduleBook(
     type: 'book',
     title,
     description,
+    startPage,
+    endPage,
     totalPages,
-    currentPage: 0,
+    currentPage: startPage - 1, // 시작 페이지 이전을 현재 페이지로 설정
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     pagesPerDay,
@@ -148,19 +152,19 @@ export function generateBookTaskForDate(
   }
 
   // 책을 완료했는지 확인
-  if (book.currentPage >= book.totalPages) {
+  if (book.currentPage >= book.endPage) {
     return null;
   }
 
   // 시작일로부터 며칠째인지 계산
   const dayIndex = dateUtils.getDaysBetween(bookStart, targetDate);
 
-  // 해당 날짜의 학습 범위 계산
-  const startPage = Math.max(1, dayIndex * book.pagesPerDay + 1);
-  const endPage = Math.min((dayIndex + 1) * book.pagesPerDay, book.totalPages);
+  // 해당 날짜의 학습 범위 계산 (book.startPage 기준)
+  const startPage = Math.max(book.startPage, book.startPage + dayIndex * book.pagesPerDay);
+  const endPage = Math.min(book.startPage + (dayIndex + 1) * book.pagesPerDay - 1, book.endPage);
 
   // 페이지 범위가 유효하지 않으면 null 반환
-  if (startPage > book.totalPages) {
+  if (startPage > book.endPage) {
     return null;
   }
 

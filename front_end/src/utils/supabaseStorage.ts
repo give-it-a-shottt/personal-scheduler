@@ -33,6 +33,8 @@ function dbToMaterial(row: any): AnyLearningMaterial {
     return {
       ...base,
       type: 'book',
+      startPage: row.start_page || 1,
+      endPage: row.end_page || row.total_pages || 0,
       totalPages: row.total_pages,
       currentPage: row.current_page,
       startDate: row.start_date,
@@ -78,6 +80,8 @@ function materialToDb(material: AnyLearningMaterial) {
   if (material.type === 'book') {
     return {
       ...base,
+      start_page: material.startPage,
+      end_page: material.endPage,
       total_pages: material.totalPages,
       current_page: material.currentPage,
       pages_per_day: material.pagesPerDay,

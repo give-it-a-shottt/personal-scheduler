@@ -59,6 +59,8 @@ export async function migrateToSupabase(): Promise<{
 
         // 타입별 필드 매핑
         if (material.type === 'book') {
+          dbData.start_page = material.startPage || 1;
+          dbData.end_page = material.endPage || material.totalPages || 0;
           dbData.total_pages = material.totalPages;
           dbData.current_page = material.currentPage;
           dbData.pages_per_day = material.pagesPerDay;

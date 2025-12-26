@@ -10,7 +10,8 @@ interface BookModalProps {
 export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
   const [formData, setFormData] = useState<BookFormData>({
     title: '',
-    totalPages: 0,
+    startPage: 1,
+    endPage: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
     description: '',
@@ -33,21 +34,23 @@ export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
 
   // 하루 학습량 자동 계산 (휴리스틱 #1: 시스템 상태 시각화)
   useEffect(() => {
-    if (formData.totalPages > 0 && formData.startDate && formData.endDate) {
+    const totalPages = formData.endPage - formData.startPage + 1;
+
+    if (totalPages > 0 && formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
       if (diffDays > 0) {
-        setCalculatedPages(Math.ceil(formData.totalPages / diffDays));
+        setCalculatedPages(Math.ceil(totalPages / diffDays));
       } else {
         setCalculatedPages(null);
       }
     } else {
       setCalculatedPages(null);
     }
-  }, [formData.totalPages, formData.startDate, formData.endDate]);
+  }, [formData.startPage, formData.endPage, formData.startDate, formData.endDate]);
 
   // 유효성 검증 (휴리스틱 #5: 오류 방지)
   const validate = (): ValidationResult => {
@@ -57,8 +60,16 @@ export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
       newErrors.title = '책 제목을 입력해주세요.';
     }
 
-    if (formData.totalPages <= 0) {
-      newErrors.totalPages = '총 페이지 수는 1 이상이어야 합니다.';
+    if (formData.startPage < 1) {
+      newErrors.startPage = '시작 페이지는 1 이상이어야 합니다.';
+    }
+
+    if (formData.endPage < 1) {
+      newErrors.endPage = '종료 페이지는 1 이상이어야 합니다.';
+    }
+
+    if (formData.startPage > 0 && formData.endPage > 0 && formData.endPage < formData.startPage) {
+      newErrors.endPage = '종료 페이지는 시작 페이지보다 크거나 같아야 합니다.';
     }
 
     if (!formData.startDate) {
@@ -104,7 +115,8 @@ export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
   const handleReset = () => {
     setFormData({
       title: '',
-      totalPages: 0,
+      startPage: 1,
+      endPage: 0,
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
       description: '',
@@ -188,31 +200,58 @@ export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
               )}
             </div>
 
-            {/* 총 페이지 수 */}
-            <div>
-              <label
-                htmlFor="totalPages"
-                className="block text-sm font-medium text-white mb-2"
-              >
-                총 페이지 수 *
-              </label>
-              <input
-                id="totalPages"
-                type="number"
-                min="1"
-                value={formData.totalPages || ''}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    totalPages: parseInt(e.target.value) || 0,
-                  })
-                }
-                className="glass-input"
-                placeholder="예: 460"
-              />
-              {errors.totalPages && (
-                <p className="mt-1 text-sm text-red-300">{errors.totalPages}</p>
-              )}
+            {/* 페이지 범위 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="startPage"
+                  className="block text-sm font-medium text-white mb-2"
+                >
+                  시작 페이지 *
+                </label>
+                <input
+                  id="startPage"
+                  type="number"
+                  min="1"
+                  value={formData.startPage || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      startPage: parseInt(e.target.value) || 1,
+                    })
+                  }
+                  className="glass-input"
+                  placeholder="예: 1"
+                />
+                {errors.startPage && (
+                  <p className="mt-1 text-sm text-red-300">{errors.startPage}</p>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="endPage"
+                  className="block text-sm font-medium text-white mb-2"
+                >
+                  종료 페이지 *
+                </label>
+                <input
+                  id="endPage"
+                  type="number"
+                  min="1"
+                  value={formData.endPage || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      endPage: parseInt(e.target.value) || 0,
+                    })
+                  }
+                  className="glass-input"
+                  placeholder="예: 460"
+                />
+                {errors.endPage && (
+                  <p className="mt-1 text-sm text-red-300">{errors.endPage}</p>
+                )}
+              </div>
             </div>
 
             {/* 날짜 범위 */}
