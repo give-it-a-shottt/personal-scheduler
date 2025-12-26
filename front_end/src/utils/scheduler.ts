@@ -123,7 +123,7 @@ export function scheduleVideo(
     currentProgress: 0,
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
-    sectionsPerDay: Math.ceil(sectionsPerDay * 10) / 10, // 소수점 1자리
+    sectionsPerDay: Math.ceil(sectionsPerDay), // 정수로 올림
     color: 'secondary-500',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
