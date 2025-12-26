@@ -61,13 +61,18 @@ function dbToMaterial(row: any): AnyLearningMaterial {
   }
 }
 
+// 날짜를 YYYY-MM-DD 형식으로 변환
+function formatDateForDb(isoString: string): string {
+  return isoString.split('T')[0];
+}
+
 // 학습 자료 변환: 앱 형식 → DB 형식
 function materialToDb(material: AnyLearningMaterial) {
   const base = {
     type: material.type,
     title: material.title,
-    description: material.description,
-    color: material.color,
+    description: material.description || null,
+    color: material.color || null,
   };
 
   if (material.type === 'book') {
@@ -76,8 +81,8 @@ function materialToDb(material: AnyLearningMaterial) {
       total_pages: material.totalPages,
       current_page: material.currentPage,
       pages_per_day: material.pagesPerDay,
-      start_date: material.startDate,
-      end_date: material.endDate,
+      start_date: formatDateForDb(material.startDate),
+      end_date: formatDateForDb(material.endDate),
       sections: null,
       total_duration: null,
       current_progress: null,
@@ -91,8 +96,8 @@ function materialToDb(material: AnyLearningMaterial) {
       total_duration: material.totalDuration,
       current_progress: material.currentProgress,
       sections_per_day: material.sectionsPerDay,
-      start_date: material.startDate,
-      end_date: material.endDate,
+      start_date: formatDateForDb(material.startDate),
+      end_date: formatDateForDb(material.endDate),
       total_pages: null,
       current_page: null,
       pages_per_day: null,
@@ -102,8 +107,8 @@ function materialToDb(material: AnyLearningMaterial) {
     return {
       ...base,
       tasks: (material as any).tasks,
-      start_date: material.startDate,
-      end_date: material.endDate,
+      start_date: formatDateForDb(material.startDate),
+      end_date: formatDateForDb(material.endDate),
       total_pages: null,
       current_page: null,
       pages_per_day: null,
