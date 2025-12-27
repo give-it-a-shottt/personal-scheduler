@@ -29,6 +29,7 @@ function App() {
     task: DailyTask;
     date: string;
   } | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<AnyLearningMaterial | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
     isSaving: false,
     hasUnsavedChanges: false,
@@ -52,13 +53,13 @@ function App() {
     return generateWeeklyPlan(materials);
   }, [materials]);
 
-  // 책 등록 처리
+  // 책 등록/수정 처리
   const handleAddBook = async (formData: BookFormData) => {
     setSystemStatus({ ...systemStatus, isSaving: true });
 
     const totalPages = formData.endPage - formData.startPage + 1;
 
-    const newBook = scheduleBook(
+    const bookData = scheduleBook(
       formData.title,
       formData.startPage,
       formData.endPage,
@@ -68,31 +69,52 @@ function App() {
       formData.description
     );
 
-    const result = await materialStorage.add(newBook);
+    let result;
+    if (editingMaterial && editingMaterial.type === 'book') {
+      // 수정 모드
+      const updatedBook = { ...bookData, id: editingMaterial.id };
+      result = await materialStorage.update(editingMaterial.id, updatedBook);
 
-    if (result.success) {
-      setMaterials([...materials, newBook]);
-      setSystemStatus({
-        isSaving: false,
-        hasUnsavedChanges: false,
-        lastSaved: new Date(),
-        successMessage: '책이 성공적으로 등록되었습니다!',
-      });
-
-      // 성공 메시지 3초 후 자동 숨김
-      setTimeout(() => {
-        setSystemStatus((prev) => ({ ...prev, successMessage: undefined }));
-      }, 3000);
+      if (result.success) {
+        setMaterials(materials.map(m => m.id === editingMaterial.id ? updatedBook : m));
+        setSystemStatus({
+          isSaving: false,
+          hasUnsavedChanges: false,
+          lastSaved: new Date(),
+          successMessage: '책이 성공적으로 수정되었습니다!',
+        });
+      }
     } else {
+      // 등록 모드
+      result = await materialStorage.add(bookData);
+
+      if (result.success) {
+        setMaterials([...materials, bookData]);
+        setSystemStatus({
+          isSaving: false,
+          hasUnsavedChanges: false,
+          lastSaved: new Date(),
+          successMessage: '책이 성공적으로 등록되었습니다!',
+        });
+      }
+    }
+
+    if (!result.success) {
       setSystemStatus({
         isSaving: false,
         hasUnsavedChanges: false,
         error: result.error,
       });
+    } else {
+      // 성공 메시지 3초 후 자동 숨김
+      setTimeout(() => {
+        setSystemStatus((prev) => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+      setEditingMaterial(null);
     }
   };
 
-  // 동영상 등록 처리
+  // 동영상 등록/수정 처리
   const handleAddVideo = async (formData: VideoFormData) => {
     setSystemStatus({ ...systemStatus, isSaving: true });
 
@@ -104,7 +126,7 @@ function App() {
       0
     );
 
-    const newVideo = scheduleVideo(
+    const videoData = scheduleVideo(
       formData.title,
       formData.sections,
       totalDuration,
@@ -113,27 +135,48 @@ function App() {
       formData.description
     );
 
-    const result = await materialStorage.add(newVideo);
+    let result;
+    if (editingMaterial && editingMaterial.type === 'video') {
+      // 수정 모드
+      const updatedVideo = { ...videoData, id: editingMaterial.id };
+      result = await materialStorage.update(editingMaterial.id, updatedVideo);
 
-    if (result.success) {
-      setMaterials([...materials, newVideo]);
-      setSystemStatus({
-        isSaving: false,
-        hasUnsavedChanges: false,
-        lastSaved: new Date(),
-        successMessage: '동영상 강의가 성공적으로 등록되었습니다!',
-      });
-
-      // 성공 메시지 3초 후 자동 숨김
-      setTimeout(() => {
-        setSystemStatus((prev) => ({ ...prev, successMessage: undefined }));
-      }, 3000);
+      if (result.success) {
+        setMaterials(materials.map(m => m.id === editingMaterial.id ? updatedVideo : m));
+        setSystemStatus({
+          isSaving: false,
+          hasUnsavedChanges: false,
+          lastSaved: new Date(),
+          successMessage: '동영상 강의가 성공적으로 수정되었습니다!',
+        });
+      }
     } else {
+      // 등록 모드
+      result = await materialStorage.add(videoData);
+
+      if (result.success) {
+        setMaterials([...materials, videoData]);
+        setSystemStatus({
+          isSaving: false,
+          hasUnsavedChanges: false,
+          lastSaved: new Date(),
+          successMessage: '동영상 강의가 성공적으로 등록되었습니다!',
+        });
+      }
+    }
+
+    if (!result.success) {
       setSystemStatus({
         isSaving: false,
         hasUnsavedChanges: false,
         error: result.error,
       });
+    } else {
+      // 성공 메시지 3초 후 자동 숨김
+      setTimeout(() => {
+        setSystemStatus((prev) => ({ ...prev, successMessage: undefined }));
+      }, 3000);
+      setEditingMaterial(null);
     }
   };
 
@@ -165,6 +208,16 @@ function App() {
   const handleTaskClick = (task: DailyTask, date: string) => {
     setSelectedTask({ task, date });
     setIsTaskDetailOpen(true);
+  };
+
+  // 학습 자료 수정
+  const handleEditMaterial = (material: AnyLearningMaterial) => {
+    setEditingMaterial(material);
+    if (material.type === 'book') {
+      setIsBookModalOpen(true);
+    } else if (material.type === 'video') {
+      setIsVideoModalOpen(true);
+    }
   };
 
   // 학습 자료 삭제
@@ -320,25 +373,46 @@ function App() {
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleDeleteMaterial(material.id)}
-                      className="text-white/40 hover:text-red-300 transition-colors"
-                      title="삭제"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditMaterial(material)}
+                        className="text-white/40 hover:text-blue-300 transition-colors"
+                        title="수정"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMaterial(material.id)}
+                        className="text-white/40 hover:text-red-300 transition-colors"
+                        title="삭제"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* 진행도 */}
@@ -409,15 +483,23 @@ function App() {
       {/* 책 등록 모달 */}
       <BookModal
         isOpen={isBookModalOpen}
-        onClose={() => setIsBookModalOpen(false)}
+        onClose={() => {
+          setIsBookModalOpen(false);
+          setEditingMaterial(null);
+        }}
         onSubmit={handleAddBook}
+        editMaterial={editingMaterial?.type === 'book' ? editingMaterial : null}
       />
 
       {/* 동영상 등록 모달 */}
       <VideoModal
         isOpen={isVideoModalOpen}
-        onClose={() => setIsVideoModalOpen(false)}
+        onClose={() => {
+          setIsVideoModalOpen(false);
+          setEditingMaterial(null);
+        }}
         onSubmit={handleAddVideo}
+        editMaterial={editingMaterial?.type === 'video' ? editingMaterial : null}
       />
 
       {/* 과제 상세 모달 */}

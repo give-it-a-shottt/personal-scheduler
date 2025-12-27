@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { VideoFormData } from '../types';
+import type { VideoFormData, VideoMaterial } from '../types';
 import { parseVideoText, formatDuration } from '../utils/videoParser';
 
 interface VideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: VideoFormData) => void;
+  editMaterial?: VideoMaterial | null;
 }
 
-export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
+export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoModalProps) {
   // 오늘 날짜와 4주 후 날짜를 기본값으로 설정
   const getDefaultDates = () => {
     const today = new Date();
@@ -21,20 +22,52 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
     };
   };
 
+  const getInitialFormData = () => {
+    if (editMaterial) {
+      // 수정 모드: 기존 섹션들을 텍스트로 변환
+      const videoText = editMaterial.sections
+        .map((section) => {
+          // duration에는 정리 시간 20분이 이미 포함되어 있으므로 빼줌
+          const originalDuration = Math.max(0, section.duration - 20);
+          const hours = Math.floor(originalDuration / 60);
+          const minutes = originalDuration % 60;
+          const timeStr = hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}` : `${minutes}`;
+          return `${section.title}\n${timeStr}`;
+        })
+        .join('\n\n');
+
+      return {
+        title: editMaterial.title,
+        videoText,
+        startDate: editMaterial.startDate.split('T')[0],
+        endDate: editMaterial.endDate.split('T')[0],
+        description: editMaterial.description || '',
+      };
+    }
+    return {
+      title: '',
+      videoText: '',
+      ...getDefaultDates(),
+      description: '',
+    };
+  };
+
   const [formData, setFormData] = useState<{
     title: string;
     videoText: string;
     startDate: string;
     endDate: string;
     description: string;
-  }>({
-    title: '',
-    videoText: '',
-    ...getDefaultDates(),
-    description: '',
-  });
+  }>(getInitialFormData());
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // 수정 모드일 때 formData 업데이트
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData());
+    }
+  }, [isOpen, editMaterial]);
 
   // 자동 파싱 및 분석 (휴리스틱 #1: 시스템 상태 시각화)
   const parsedData = useMemo(() => {
@@ -175,7 +208,7 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
           {/* 헤더 (휴리스틱 #2: 명확한 제목) */}
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white text-shadow">
-              동영상 강의 등록
+              {editMaterial ? '동영상 강의 수정' : '동영상 강의 등록'}
             </h2>
             <button
               onClick={onClose}
@@ -413,7 +446,7 @@ export function VideoModal({ isOpen, onClose, onSubmit }: VideoModalProps) {
                 className="glass-button-primary flex-1"
                 disabled={!parsedData}
               >
-                등록하기
+                {editMaterial ? '수정하기' : '등록하기'}
               </button>
             </div>
           </form>

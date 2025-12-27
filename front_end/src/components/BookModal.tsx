@@ -1,24 +1,46 @@
 import { useState, useEffect } from 'react';
-import type { BookFormData, ValidationResult } from '../types';
+import type { BookFormData, ValidationResult, BookMaterial } from '../types';
 
 interface BookModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: BookFormData) => void;
+  editMaterial?: BookMaterial | null;
 }
 
-export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
-  const [formData, setFormData] = useState<BookFormData>({
-    title: '',
-    startPage: 1,
-    endPage: 0,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: '',
-    description: '',
-  });
+export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModalProps) {
+  const getInitialFormData = (): BookFormData => {
+    if (editMaterial) {
+      return {
+        title: editMaterial.title,
+        startPage: editMaterial.startPage,
+        endPage: editMaterial.endPage,
+        startDate: editMaterial.startDate.split('T')[0],
+        endDate: editMaterial.endDate.split('T')[0],
+        description: editMaterial.description || '',
+      };
+    }
+    return {
+      title: '',
+      startPage: 1,
+      endPage: 0,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: '',
+      description: '',
+    };
+  };
+
+  const [formData, setFormData] = useState<BookFormData>(getInitialFormData());
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [calculatedPages, setCalculatedPages] = useState<number | null>(null);
+
+  // 수정 모드일 때 formData 업데이트
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(getInitialFormData());
+    }
+  }, [isOpen, editMaterial]);
 
   // 휴리스틱 #3: ESC 키로 모달 닫기
   useEffect(() => {
@@ -151,7 +173,7 @@ export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
           {/* 헤더 (휴리스틱 #2: 명확한 제목) */}
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white text-shadow">
-              책 학습 등록
+              {editMaterial ? '책 학습 수정' : '책 학습 등록'}
             </h2>
             <button
               onClick={onClose}
@@ -354,7 +376,7 @@ export function BookModal({ isOpen, onClose, onSubmit }: BookModalProps) {
                 취소
               </button>
               <button type="submit" className="glass-button-primary flex-1">
-                등록하기
+                {editMaterial ? '수정하기' : '등록하기'}
               </button>
             </div>
           </form>
