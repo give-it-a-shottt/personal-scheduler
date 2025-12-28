@@ -4,6 +4,8 @@ import { BookModal } from './components/BookModal';
 import { VideoModal } from './components/VideoModal';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { TodayTasks } from './components/TodayTasks';
+import MonthCalendar from './components/MonthCalendar';
+import { DayDetailModal } from './components/DayDetailModal';
 import type {
   AnyLearningMaterial,
   BookFormData,
@@ -22,12 +24,18 @@ function App() {
   // 상태 관리
   const [materials, setMaterials] = useState<AnyLearningMaterial[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [activeView, setActiveView] = useState<'today' | 'week' | 'calendar'>('today');
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
+  const [isDayDetailModalOpen, setIsDayDetailModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<{
     task: DailyTask;
     date: string;
+  } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<{
+    date: string;
+    tasks: DailyTask[];
   } | null>(null);
   const [editingMaterial, setEditingMaterial] = useState<AnyLearningMaterial | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
@@ -210,6 +218,12 @@ function App() {
     setIsTaskDetailOpen(true);
   };
 
+  // 날짜 클릭 핸들러 (달력에서 날짜 클릭 시)
+  const handleDayClick = (date: string, tasks: DailyTask[]) => {
+    setSelectedDate({ date, tasks });
+    setIsDayDetailModalOpen(true);
+  };
+
   // 학습 자료 수정
   const handleEditMaterial = (material: AnyLearningMaterial) => {
     setEditingMaterial(material);
@@ -343,6 +357,40 @@ function App() {
           )}
         </header>
 
+        {/* 탭 네비게이션 */}
+        <div className="glass-card p-2 flex gap-2">
+          <button
+            onClick={() => setActiveView('today')}
+            className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+              activeView === 'today'
+                ? 'glass-button-primary'
+                : 'glass-button hover:bg-white/10'
+            }`}
+          >
+            📅 오늘
+          </button>
+          <button
+            onClick={() => setActiveView('week')}
+            className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+              activeView === 'week'
+                ? 'glass-button-primary'
+                : 'glass-button hover:bg-white/10'
+            }`}
+          >
+            📆 이번주
+          </button>
+          <button
+            onClick={() => setActiveView('calendar')}
+            className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+              activeView === 'calendar'
+                ? 'glass-button-primary'
+                : 'glass-button hover:bg-white/10'
+            }`}
+          >
+            🗓️ 달력
+          </button>
+        </div>
+
         {/* 등록된 학습 자료 목록 */}
         {materials.length > 0 && (
           <div className="glass-card p-6">
@@ -435,21 +483,33 @@ function App() {
         )}
 
         {/* 오늘의 학습 */}
-        {materials.length > 0 && (
+        {activeView === 'today' && materials.length > 0 && (
           <TodayTasks
             weeklyPlan={weeklyPlan}
             completedTasks={completedTasks}
             onTaskClick={handleTaskClick}
+            onTaskToggle={handleTaskToggle}
           />
         )}
 
         {/* 주간 캘린더 */}
-        <WeeklyCalendar
-          weeklyPlan={weeklyPlan}
-          onTaskToggle={handleTaskToggle}
-          onTaskClick={handleTaskClick}
-          completedTasks={completedTasks}
-        />
+        {activeView === 'week' && (
+          <WeeklyCalendar
+            weeklyPlan={weeklyPlan}
+            onTaskToggle={handleTaskToggle}
+            onTaskClick={handleTaskClick}
+            completedTasks={completedTasks}
+          />
+        )}
+
+        {/* 월간 캘린더 */}
+        {activeView === 'calendar' && (
+          <MonthCalendar
+            materials={materials}
+            completedTasks={completedTasks}
+            onDayClick={handleDayClick}
+          />
+        )}
 
         {/* 빈 상태 (휴리스틱 #6: 직관적 안내) */}
         {materials.length === 0 && (
@@ -523,6 +583,21 @@ function App() {
           isCompleted={completedTasks.has(
             `${selectedTask.task.materialId}-${selectedTask.date}`
           )}
+        />
+      )}
+
+      {/* 날짜별 과제 모달 */}
+      {selectedDate && (
+        <DayDetailModal
+          isOpen={isDayDetailModalOpen}
+          date={selectedDate.date}
+          tasks={selectedDate.tasks}
+          completedTasks={completedTasks}
+          onClose={() => {
+            setIsDayDetailModalOpen(false);
+            setSelectedDate(null);
+          }}
+          onTaskToggle={handleTaskToggle}
         />
       )}
     </div>

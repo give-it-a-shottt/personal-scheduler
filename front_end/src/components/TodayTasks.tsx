@@ -6,12 +6,14 @@ interface TodayTasksProps {
   weeklyPlan: WeeklyPlan;
   completedTasks: Set<string>;
   onTaskClick: (task: DailyTask, date: string) => void;
+  onTaskToggle: (materialId: string, date: string, completed: boolean) => void;
 }
 
 export function TodayTasks({
   weeklyPlan,
   completedTasks,
   onTaskClick,
+  onTaskToggle,
 }: TodayTasksProps) {
   const todayData = useMemo(() => {
     const today = dateUtils.formatDate(new Date());
@@ -121,29 +123,44 @@ export function TodayTasks({
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
             {todayData.incompleteTasks.map((task) => (
-              <button
+              <div
                 key={`${task.materialId}-${todayData.date}`}
-                onClick={() => onTaskClick(task, todayData.date)}
-                className="w-full text-left glass-card-hover p-4 group"
+                className="glass-card-hover p-4"
               >
                 <div className="flex items-start gap-3">
+                  {/* 체크박스 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTaskToggle(task.materialId, todayData.date, true);
+                    }}
+                    className="flex-shrink-0 w-6 h-6 rounded border-2 border-white/30 hover:border-white/50 flex items-center justify-center transition-all mt-1"
+                  >
+                  </button>
+
                   {/* 아이콘 */}
                   <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-lg">
                     {task.materialType === 'book' ? '📖' : '🎬'}
                   </div>
 
                   {/* 내용 */}
-                  <div className="flex-1 min-w-0">
+                  <button
+                    onClick={() => onTaskClick(task, todayData.date)}
+                    className="flex-1 min-w-0 text-left group"
+                  >
                     <div className="text-white font-medium mb-1 group-hover:text-primary-300 transition-colors">
                       {task.materialTitle}
                     </div>
                     <div className="text-white/60 text-sm">
                       {task.description}
                     </div>
-                  </div>
+                  </button>
 
                   {/* 화살표 */}
-                  <div className="flex-shrink-0 text-white/40 group-hover:text-white/60 transition-colors">
+                  <button
+                    onClick={() => onTaskClick(task, todayData.date)}
+                    className="flex-shrink-0 text-white/40 hover:text-white/60 transition-colors"
+                  >
                     <svg
                       className="w-5 h-5"
                       fill="none"
@@ -157,9 +174,9 @@ export function TodayTasks({
                         d="M9 5l7 7-7 7"
                       />
                     </svg>
-                  </div>
+                  </button>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -193,19 +210,27 @@ export function TodayTasks({
                   className="glass-card p-3 opacity-60"
                 >
                   <div className="flex items-center gap-2">
-                    <svg
-                      className="w-5 h-5 text-green-400 flex-shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskToggle(task.materialId, todayData.date, false);
+                      }}
+                      className="flex-shrink-0 w-5 h-5 rounded border-2 border-green-500 bg-green-500/20 flex items-center justify-center transition-all hover:bg-green-500/30"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                      <svg
+                        className="w-3 h-3 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </button>
                     <div className="flex-1">
                       <div className="text-white/80 text-sm line-through decoration-red-500 decoration-2">
                         {task.materialTitle}
@@ -252,29 +277,44 @@ export function TodayTasks({
           {tomorrowData.incompleteTasks.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
               {tomorrowData.incompleteTasks.map((task) => (
-                <button
+                <div
                   key={`${task.materialId}-${tomorrowData.date}`}
-                  onClick={() => onTaskClick(task, tomorrowData.date)}
-                  className="w-full text-left glass-card-hover p-4 group bg-white/5"
+                  className="glass-card-hover p-4 bg-white/5"
                 >
                   <div className="flex items-start gap-3">
+                    {/* 체크박스 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskToggle(task.materialId, tomorrowData.date, true);
+                      }}
+                      className="flex-shrink-0 w-6 h-6 rounded border-2 border-white/30 hover:border-white/50 flex items-center justify-center transition-all mt-1"
+                    >
+                    </button>
+
                     {/* 아이콘 */}
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-lg">
                       {task.materialType === 'book' ? '📖' : '🎬'}
                     </div>
 
                     {/* 내용 */}
-                    <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => onTaskClick(task, tomorrowData.date)}
+                      className="flex-1 min-w-0 text-left group"
+                    >
                       <div className="text-white font-medium mb-1 group-hover:text-secondary-300 transition-colors">
                         {task.materialTitle}
                       </div>
                       <div className="text-white/60 text-sm">
                         {task.description}
                       </div>
-                    </div>
+                    </button>
 
                     {/* 화살표 */}
-                    <div className="flex-shrink-0 text-white/40 group-hover:text-white/60 transition-colors">
+                    <button
+                      onClick={() => onTaskClick(task, tomorrowData.date)}
+                      className="flex-shrink-0 text-white/40 hover:text-white/60 transition-colors"
+                    >
                       <svg
                         className="w-5 h-5"
                         fill="none"
@@ -288,9 +328,9 @@ export function TodayTasks({
                           d="M9 5l7 7-7 7"
                         />
                       </svg>
-                    </div>
+                    </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           ) : (
