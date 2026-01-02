@@ -18,6 +18,9 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
         startDate: editMaterial.startDate.split('T')[0],
         endDate: editMaterial.endDate.split('T')[0],
         description: editMaterial.description || '',
+        studyDays: editMaterial.studyDays || [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
+        dailyStudyHours: editMaterial.dailyStudyHours,
+        minutesPerPage: editMaterial.minutesPerPage,
       };
     }
     return {
@@ -27,6 +30,7 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
       description: '',
+      studyDays: [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
     };
   };
 
@@ -73,6 +77,63 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
       setCalculatedPages(null);
     }
   }, [formData.startPage, formData.endPage, formData.startDate, formData.endDate]);
+
+  // 종료일 자동 계산 (하루 공부 시간 기반)
+  useEffect(() => {
+    // 필요한 모든 값이 입력되었는지 확인
+    if (
+      !formData.minutesPerPage ||
+      !formData.dailyStudyHours ||
+      !formData.startDate ||
+      formData.endPage <= 0 ||
+      formData.startPage <= 0 ||
+      formData.dailyStudyHours <= 0 ||
+      formData.minutesPerPage <= 0
+    ) {
+      return;
+    }
+
+    const totalPages = formData.endPage - formData.startPage + 1;
+    const totalMinutes = totalPages * formData.minutesPerPage;
+    const totalHours = totalMinutes / 60;
+    const dailyHours = formData.dailyStudyHours;
+    const studyDays = formData.studyDays;
+
+    const startDate = new Date(formData.startDate);
+    let currentDate = new Date(startDate);
+    let accumulatedHours = 0;
+
+    let maxIterations = 365 * 2; // 최대 2년
+    let iterations = 0;
+
+    while (accumulatedHours < totalHours && iterations < maxIterations) {
+      const dayOfWeek = currentDate.getDay();
+
+      // 학습 요일인 경우만 시간 누적
+      if (studyDays.includes(dayOfWeek)) {
+        accumulatedHours += dailyHours;
+      }
+
+      if (accumulatedHours >= totalHours) {
+        break;
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+      iterations++;
+    }
+
+    const calculatedEndDate = currentDate.toISOString().split('T')[0];
+    if (calculatedEndDate !== formData.endDate) {
+      setFormData((prev) => ({ ...prev, endDate: calculatedEndDate }));
+    }
+  }, [
+    formData.minutesPerPage,
+    formData.dailyStudyHours,
+    formData.startDate,
+    formData.startPage,
+    formData.endPage,
+    formData.studyDays,
+  ]);
 
   // 유효성 검증 (휴리스틱 #5: 오류 방지)
   const validate = (): ValidationResult => {
@@ -142,9 +203,20 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
       description: '',
+      studyDays: [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
     });
     setErrors({});
     setCalculatedPages(null);
+  };
+
+  // 요일 토글 핸들러
+  const toggleStudyDay = (day: number) => {
+    setFormData((prev) => {
+      const newStudyDays = prev.studyDays.includes(day)
+        ? prev.studyDays.filter((d) => d !== day)
+        : [...prev.studyDays, day].sort((a, b) => a - b);
+      return { ...prev, studyDays: newStudyDays };
+    });
   };
 
   // 휴리스틱 #3: 취소 버튼
@@ -305,6 +377,14 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
                   className="block text-sm font-medium text-white mb-2"
                 >
                   완료 날짜 *
+                  {formData.minutesPerPage &&
+                    formData.dailyStudyHours &&
+                    formData.minutesPerPage > 0 &&
+                    formData.dailyStudyHours > 0 && (
+                      <span className="ml-2 text-xs text-primary-300">
+                        (자동 계산됨)
+                      </span>
+                    )}
                 </label>
                 <input
                   id="endDate"
@@ -313,12 +393,125 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
                   onChange={(e) =>
                     setFormData({ ...formData, endDate: e.target.value })
                   }
-                  className="glass-input"
+                  disabled={
+                    !!(
+                      formData.minutesPerPage &&
+                      formData.dailyStudyHours &&
+                      formData.minutesPerPage > 0 &&
+                      formData.dailyStudyHours > 0
+                    )
+                  }
+                  className={`glass-input ${
+                    formData.minutesPerPage &&
+                    formData.dailyStudyHours &&
+                    formData.minutesPerPage > 0 &&
+                    formData.dailyStudyHours > 0
+                      ? 'opacity-60 cursor-not-allowed'
+                      : ''
+                  }`}
                 />
                 {errors.endDate && (
                   <p className="mt-1 text-sm text-red-300">{errors.endDate}</p>
                 )}
               </div>
+            </div>
+
+            {/* 학습 요일 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">
+                학습 요일 *
+              </label>
+              <div className="grid grid-cols-7 gap-2">
+                {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => toggleStudyDay(index)}
+                    className={`
+                      py-2 px-1 rounded-lg text-sm font-medium transition-all
+                      ${
+                        formData.studyDays.includes(index)
+                          ? 'bg-gradient-to-br from-primary-500 to-secondary-500 text-white shadow-lg'
+                          : 'bg-white/10 text-white/50 hover:bg-white/20'
+                      }
+                    `}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+              {formData.studyDays.length === 0 && (
+                <p className="mt-2 text-sm text-yellow-300">
+                  최소 1개 이상의 요일을 선택해주세요.
+                </p>
+              )}
+            </div>
+
+            {/* 1페이지당 평균 소요 시간 (선택사항) */}
+            <div>
+              <label
+                htmlFor="minutesPerPage"
+                className="block text-sm font-medium text-white mb-2"
+              >
+                1페이지당 평균 소요 시간 (선택사항)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="minutesPerPage"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={formData.minutesPerPage || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      minutesPerPage: e.target.value
+                        ? parseInt(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  className="glass-input flex-1"
+                  placeholder="예: 3"
+                />
+                <span className="text-white/70 text-sm">분</span>
+              </div>
+              <p className="mt-1 text-xs text-white/50">
+                책 한 페이지를 읽는데 걸리는 평균 시간을 입력하세요
+              </p>
+            </div>
+
+            {/* 하루 공부 가능 시간 (선택사항) */}
+            <div>
+              <label
+                htmlFor="dailyStudyHours"
+                className="block text-sm font-medium text-white mb-2"
+              >
+                하루 공부 가능 시간 (선택사항)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="dailyStudyHours"
+                  type="number"
+                  min="0.5"
+                  max="24"
+                  step="0.5"
+                  value={formData.dailyStudyHours || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      dailyStudyHours: e.target.value
+                        ? parseFloat(e.target.value)
+                        : undefined,
+                    })
+                  }
+                  className="glass-input flex-1"
+                  placeholder="예: 4"
+                />
+                <span className="text-white/70 text-sm">시간</span>
+              </div>
+              <p className="mt-1 text-xs text-white/50">
+                입력하면 종료일이 자동으로 계산됩니다 (예: 퇴근 후 7시~11시 = 4시간)
+              </p>
             </div>
 
             {/* 자동 계산된 하루 학습량 표시 (휴리스틱 #1, #6) */}

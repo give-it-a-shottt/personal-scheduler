@@ -74,7 +74,10 @@ function App() {
       totalPages,
       new Date(formData.startDate),
       new Date(formData.endDate),
-      formData.description
+      formData.studyDays,
+      formData.description,
+      formData.dailyStudyHours,
+      formData.minutesPerPage
     );
 
     let result;
@@ -140,7 +143,9 @@ function App() {
       totalDuration,
       startDate,
       endDate,
-      formData.description
+      formData.studyDays,
+      formData.description,
+      formData.dailyStudyHours
     );
 
     let result;

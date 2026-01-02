@@ -71,7 +71,7 @@ export const materialStorage = {
         ...materials[index],
         ...updates,
         updatedAt: new Date().toISOString(),
-      };
+      } as AnyLearningMaterial;
 
       localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(materials));
       return { success: true };

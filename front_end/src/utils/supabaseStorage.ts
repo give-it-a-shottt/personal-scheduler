@@ -40,6 +40,9 @@ function dbToMaterial(row: any): AnyLearningMaterial {
       startDate: row.start_date,
       endDate: row.end_date,
       pagesPerDay: row.pages_per_day,
+      studyDays: row.study_days || [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
+      dailyStudyHours: row.daily_study_hours,
+      minutesPerPage: row.minutes_per_page,
     } as BookMaterial;
   } else if (row.type === 'video') {
     return {
@@ -51,6 +54,8 @@ function dbToMaterial(row: any): AnyLearningMaterial {
       startDate: row.start_date,
       endDate: row.end_date,
       sectionsPerDay: row.sections_per_day,
+      studyDays: row.study_days || [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
+      dailyStudyHours: row.daily_study_hours,
     } as VideoMaterial;
   } else {
     return {
@@ -59,6 +64,7 @@ function dbToMaterial(row: any): AnyLearningMaterial {
       tasks: row.tasks,
       startDate: row.start_date,
       endDate: row.end_date,
+      studyDays: row.study_days || [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
     } as any;
   }
 }
@@ -87,6 +93,9 @@ function materialToDb(material: AnyLearningMaterial) {
       pages_per_day: material.pagesPerDay,
       start_date: formatDateForDb(material.startDate),
       end_date: formatDateForDb(material.endDate),
+      study_days: material.studyDays,
+      daily_study_hours: material.dailyStudyHours,
+      minutes_per_page: material.minutesPerPage,
       sections: null,
       total_duration: null,
       current_progress: null,
@@ -102,6 +111,8 @@ function materialToDb(material: AnyLearningMaterial) {
       sections_per_day: material.sectionsPerDay,
       start_date: formatDateForDb(material.startDate),
       end_date: formatDateForDb(material.endDate),
+      study_days: material.studyDays,
+      daily_study_hours: material.dailyStudyHours,
       total_pages: null,
       current_page: null,
       pages_per_day: null,
@@ -113,6 +124,7 @@ function materialToDb(material: AnyLearningMaterial) {
       tasks: (material as any).tasks,
       start_date: formatDateForDb(material.startDate),
       end_date: formatDateForDb(material.endDate),
+      study_days: (material as any).studyDays,
       total_pages: null,
       current_page: null,
       pages_per_day: null,

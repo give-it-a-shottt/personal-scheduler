@@ -42,6 +42,8 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
         startDate: editMaterial.startDate.split('T')[0],
         endDate: editMaterial.endDate.split('T')[0],
         description: editMaterial.description || '',
+        studyDays: editMaterial.studyDays || [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
+        dailyStudyHours: editMaterial.dailyStudyHours,
       };
     }
     return {
@@ -49,6 +51,8 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
       videoText: '',
       ...getDefaultDates(),
       description: '',
+      studyDays: [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
+      dailyStudyHours: undefined,
     };
   };
 
@@ -58,6 +62,8 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
     startDate: string;
     endDate: string;
     description: string;
+    studyDays: number[];
+    dailyStudyHours?: number;
   }>(getInitialFormData());
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -82,6 +88,50 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
       return null;
     }
   }, [formData.videoText]);
+
+  // 종료일 자동 계산 (하루 공부 시간이 입력된 경우)
+  useEffect(() => {
+    if (!parsedData || !formData.startDate || !formData.dailyStudyHours || formData.dailyStudyHours <= 0) {
+      return;
+    }
+
+    const totalHours = parsedData.totalDuration / 60; // 분 -> 시간
+    const dailyHours = formData.dailyStudyHours;
+    const studyDays = formData.studyDays;
+
+    // 시작일부터 종료일 계산
+    const startDate = new Date(formData.startDate);
+    let currentDate = new Date(startDate);
+    let accumulatedHours = 0;
+
+    // 최대 1년까지만 계산 (무한 루프 방지)
+    let maxIterations = 365;
+    let iterations = 0;
+
+    while (accumulatedHours < totalHours && iterations < maxIterations) {
+      const dayOfWeek = currentDate.getDay();
+
+      // 학습 요일인 경우에만 시간 누적
+      if (studyDays.includes(dayOfWeek)) {
+        accumulatedHours += dailyHours;
+      }
+
+      // 목표 시간 달성했으면 종료
+      if (accumulatedHours >= totalHours) {
+        break;
+      }
+
+      // 다음 날로 이동
+      currentDate.setDate(currentDate.getDate() + 1);
+      iterations++;
+    }
+
+    // 계산된 종료일을 formData에 반영
+    const calculatedEndDate = currentDate.toISOString().split('T')[0];
+    if (calculatedEndDate !== formData.endDate) {
+      setFormData((prev) => ({ ...prev, endDate: calculatedEndDate }));
+    }
+  }, [parsedData, formData.startDate, formData.dailyStudyHours, formData.studyDays]);
 
   // 하루 학습량 계산
   const dailyStats = useMemo(() => {
@@ -165,6 +215,8 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
       startDate: formData.startDate,
       endDate: formData.endDate,
       description: formData.description,
+      studyDays: formData.studyDays,
+      dailyStudyHours: formData.dailyStudyHours,
     };
 
     onSubmit(submitData);
@@ -178,8 +230,20 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
       videoText: '',
       ...getDefaultDates(),
       description: '',
+      studyDays: [0, 1, 2, 3, 4, 5, 6], // 기본값: 모든 요일
+      dailyStudyHours: undefined,
     });
     setErrors({});
+  };
+
+  // 요일 토글 핸들러
+  const toggleStudyDay = (day: number) => {
+    setFormData((prev) => {
+      const newStudyDays = prev.studyDays.includes(day)
+        ? prev.studyDays.filter((d) => d !== day)
+        : [...prev.studyDays, day].sort((a, b) => a - b);
+      return { ...prev, studyDays: newStudyDays };
+    });
   };
 
   // 휴리스틱 #3: 취소 버튼
@@ -331,6 +395,38 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
               </div>
             )}
 
+            {/* 하루 공부 가능 시간 (선택사항) */}
+            <div>
+              <label
+                htmlFor="dailyStudyHours"
+                className="block text-sm font-medium text-white mb-2"
+              >
+                하루 공부 가능 시간 (선택사항)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="dailyStudyHours"
+                  type="number"
+                  min="0.5"
+                  max="24"
+                  step="0.5"
+                  value={formData.dailyStudyHours || ''}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      dailyStudyHours: e.target.value ? parseFloat(e.target.value) : undefined,
+                    })
+                  }
+                  className="glass-input flex-1"
+                  placeholder="예: 4"
+                />
+                <span className="text-white/70 text-sm">시간</span>
+              </div>
+              <p className="mt-1 text-xs text-white/50">
+                입력하면 종료일이 자동으로 계산됩니다 (예: 퇴근 후 7시~11시 = 4시간)
+              </p>
+            </div>
+
             {/* 학습 기간 */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -361,7 +457,7 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
                   htmlFor="endDate"
                   className="block text-sm font-medium text-white mb-2"
                 >
-                  종료 날짜 *
+                  종료 날짜 * {formData.dailyStudyHours ? '(자동 계산됨)' : ''}
                 </label>
                 <input
                   id="endDate"
@@ -373,12 +469,44 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
                       endDate: e.target.value,
                     })
                   }
+                  disabled={!!formData.dailyStudyHours}
                   className="glass-input"
                 />
                 {errors.endDate && (
                   <p className="mt-1 text-sm text-red-300">{errors.endDate}</p>
                 )}
               </div>
+            </div>
+
+            {/* 학습 요일 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">
+                학습 요일 *
+              </label>
+              <div className="grid grid-cols-7 gap-2">
+                {['일', '월', '화', '수', '목', '금', '토'].map((day, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => toggleStudyDay(index)}
+                    className={`
+                      py-2 px-1 rounded-lg text-sm font-medium transition-all
+                      ${
+                        formData.studyDays.includes(index)
+                          ? 'bg-gradient-to-br from-primary-500 to-secondary-500 text-white shadow-lg'
+                          : 'bg-white/10 text-white/50 hover:bg-white/20'
+                      }
+                    `}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+              {formData.studyDays.length === 0 && (
+                <p className="mt-2 text-sm text-yellow-300">
+                  최소 1개 이상의 요일을 선택해주세요.
+                </p>
+              )}
             </div>
 
             {/* 하루 학습량 표시 (휴리스틱 #1, #6) */}

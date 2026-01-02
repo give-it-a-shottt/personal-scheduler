@@ -22,6 +22,9 @@ export interface BookMaterial extends LearningMaterial {
   startDate: string; // ISO 8601
   endDate: string;   // ISO 8601
   pagesPerDay: number; // 자동 계산됨
+  studyDays: number[]; // 학습 요일 (0=일요일, 1=월요일, ..., 6=토요일)
+  dailyStudyHours?: number; // 하루 공부 가능 시간 (시간 단위, 선택사항)
+  minutesPerPage?: number; // 1페이지당 평균 소요 시간 (분 단위, 선택사항)
 }
 
 // 동영상 강의 자료 (나중에 구현)
@@ -33,6 +36,8 @@ export interface VideoMaterial extends LearningMaterial {
   startDate: string;
   endDate: string;
   sectionsPerDay: number; // 자동 계산됨
+  studyDays: number[]; // 학습 요일 (0=일요일, 1=월요일, ..., 6=토요일)
+  dailyStudyHours?: number; // 하루 공부 가능 시간 (시간 단위, 선택사항)
 }
 
 // 동영상 섹션
@@ -50,6 +55,7 @@ export interface CustomMaterial extends LearningMaterial {
   tasks: CustomTask[];
   startDate: string;
   endDate: string;
+  studyDays: number[]; // 학습 요일 (0=일요일, 1=월요일, ..., 6=토요일)
 }
 
 export interface CustomTask {
@@ -107,6 +113,9 @@ export interface BookFormData {
   startDate: string;
   endDate: string;
   description?: string;
+  studyDays: number[]; // 학습 요일 (0=일요일, 1=월요일, ..., 6=토요일)
+  dailyStudyHours?: number; // 하루 공부 가능 시간 (시간 단위, 선택사항)
+  minutesPerPage?: number; // 1페이지당 평균 소요 시간 (분 단위, 선택사항)
 }
 
 // 동영상 등록 폼 데이터
@@ -116,6 +125,8 @@ export interface VideoFormData {
   startDate: string; // 시작 날짜 (YYYY-MM-DD)
   endDate: string; // 종료 날짜 (YYYY-MM-DD)
   description?: string;
+  studyDays: number[]; // 학습 요일 (0=일요일, 1=월요일, ..., 6=토요일)
+  dailyStudyHours?: number; // 하루 공부 가능 시간 (시간 단위, 선택사항)
 }
 
 // 유효성 검증 결과

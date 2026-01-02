@@ -66,6 +66,7 @@ export async function migrateToSupabase(): Promise<{
           dbData.pages_per_day = material.pagesPerDay;
           dbData.start_date = material.startDate;
           dbData.end_date = material.endDate;
+          dbData.study_days = material.studyDays || [0, 1, 2, 3, 4, 5, 6]; // 기본값: 모든 요일
         } else if (material.type === 'video') {
           dbData.sections = material.sections;
           dbData.total_duration = material.totalDuration;
@@ -73,10 +74,12 @@ export async function migrateToSupabase(): Promise<{
           dbData.sections_per_day = material.sectionsPerDay;
           dbData.start_date = material.startDate;
           dbData.end_date = material.endDate;
+          dbData.study_days = material.studyDays || [0, 1, 2, 3, 4, 5, 6]; // 기본값: 모든 요일
         } else if (material.type === 'custom') {
           dbData.tasks = material.tasks;
           dbData.start_date = material.startDate;
           dbData.end_date = material.endDate;
+          dbData.study_days = material.studyDays || [0, 1, 2, 3, 4, 5, 6]; // 기본값: 모든 요일
         }
 
         const { error } = await supabase.from('materials').upsert(dbData, {

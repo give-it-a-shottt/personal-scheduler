@@ -81,10 +81,17 @@ export function scheduleBook(
   totalPages: number,
   startDate: Date,
   endDate: Date,
-  description?: string
+  studyDays: number[],
+  description?: string,
+  dailyStudyHours?: number,
+  minutesPerPage?: number
 ): BookMaterial {
-  const days = dateUtils.getDaysBetween(startDate, endDate) + 1;
-  const pagesPerDay = Math.ceil(totalPages / days);
+  // 학습 기간 내에서 실제 학습 가능한 날 수 계산
+  const dateRange = dateUtils.getDateRange(startDate, endDate);
+  const actualStudyDays = dateRange.filter((date) => studyDays.includes(date.getDay())).length;
+
+  // 실제 학습 날짜를 기준으로 하루 학습량 계산
+  const pagesPerDay = actualStudyDays > 0 ? Math.ceil(totalPages / actualStudyDays) : 0;
 
   return {
     id: crypto.randomUUID(),
@@ -98,6 +105,9 @@ export function scheduleBook(
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     pagesPerDay,
+    studyDays,
+    dailyStudyHours,
+    minutesPerPage,
     color: 'primary-500',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -111,10 +121,16 @@ export function scheduleVideo(
   totalDuration: number,
   startDate: Date,
   endDate: Date,
-  description?: string
+  studyDays: number[],
+  description?: string,
+  dailyStudyHours?: number
 ): VideoMaterial {
-  const days = dateUtils.getDaysBetween(startDate, endDate) + 1;
-  const sectionsPerDay = sections.length / days;
+  // 학습 기간 내에서 실제 학습 가능한 날 수 계산
+  const dateRange = dateUtils.getDateRange(startDate, endDate);
+  const actualStudyDays = dateRange.filter((date) => studyDays.includes(date.getDay())).length;
+
+  // 실제 학습 날짜를 기준으로 하루 학습량 계산
+  const sectionsPerDay = actualStudyDays > 0 ? sections.length / actualStudyDays : 0;
 
   return {
     id: crypto.randomUUID(),
@@ -127,6 +143,8 @@ export function scheduleVideo(
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     sectionsPerDay: Math.ceil(sectionsPerDay), // 정수로 올림
+    studyDays,
+    dailyStudyHours,
     color: 'secondary-500',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -154,17 +172,24 @@ export function generateBookTaskForDate(
     return null;
   }
 
+  // 해당 날짜가 학습 요일에 포함되어 있는지 확인
+  const dayOfWeek = targetDate.getDay();
+  if (!book.studyDays.includes(dayOfWeek)) {
+    return null;
+  }
+
   // 책을 완료했는지 확인
   if (book.currentPage >= book.endPage) {
     return null;
   }
 
-  // 시작일로부터 며칠째인지 계산
-  const dayIndex = dateUtils.getDaysBetween(bookStart, targetDate);
+  // 시작일부터 해당 날짜까지의 실제 학습 가능한 날 수 계산
+  const dateRange = dateUtils.getDateRange(bookStart, targetDate);
+  const studyDaysSoFar = dateRange.filter((d) => book.studyDays.includes(d.getDay())).length - 1; // 오늘 제외
 
   // 해당 날짜의 학습 범위 계산 (book.startPage 기준)
-  const startPage = Math.max(book.startPage, book.startPage + dayIndex * book.pagesPerDay);
-  const endPage = Math.min(book.startPage + (dayIndex + 1) * book.pagesPerDay - 1, book.endPage);
+  const startPage = Math.max(book.startPage, book.startPage + studyDaysSoFar * book.pagesPerDay);
+  const endPage = Math.min(book.startPage + (studyDaysSoFar + 1) * book.pagesPerDay - 1, book.endPage);
 
   // 페이지 범위가 유효하지 않으면 null 반환
   if (startPage > book.endPage) {
@@ -203,18 +228,25 @@ export function generateVideoTaskForDate(
     return null;
   }
 
+  // 해당 날짜가 학습 요일에 포함되어 있는지 확인
+  const dayOfWeek = targetDate.getDay();
+  if (!video.studyDays.includes(dayOfWeek)) {
+    return null;
+  }
+
   // 강의를 완료했는지 확인
   if (video.currentProgress >= video.sections.length) {
     return null;
   }
 
-  // 시작일로부터 며칠째인지 계산
-  const dayIndex = dateUtils.getDaysBetween(videoStart, targetDate);
+  // 시작일부터 해당 날짜까지의 실제 학습 가능한 날 수 계산
+  const dateRange = dateUtils.getDateRange(videoStart, targetDate);
+  const studyDaysSoFar = dateRange.filter((d) => video.studyDays.includes(d.getDay())).length - 1; // 오늘 제외
 
   // 해당 날짜의 학습 범위 계산
-  const startIndex = Math.floor(dayIndex * video.sectionsPerDay);
+  const startIndex = Math.floor(studyDaysSoFar * video.sectionsPerDay);
   const endIndex = Math.min(
-    Math.floor((dayIndex + 1) * video.sectionsPerDay),
+    Math.floor((studyDaysSoFar + 1) * video.sectionsPerDay),
     video.sections.length
   );
 
