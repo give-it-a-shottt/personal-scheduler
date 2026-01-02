@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { BookFormData, ValidationResult, BookMaterial } from '../types';
+import { dateUtils } from '../utils/scheduler';
 
 interface BookModalProps {
   isOpen: boolean;
@@ -65,18 +66,22 @@ export function BookModal({ isOpen, onClose, onSubmit, editMaterial }: BookModal
     if (totalPages > 0 && formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-      if (diffDays > 0) {
-        setCalculatedPages(Math.ceil(totalPages / diffDays));
+      // 학습 기간 내에서 실제 학습 가능한 날 수 계산
+      const dateRange = dateUtils.getDateRange(start, end);
+      const actualStudyDays = dateRange.filter((date) =>
+        formData.studyDays.includes(date.getDay())
+      ).length;
+
+      if (actualStudyDays > 0) {
+        setCalculatedPages(Math.ceil(totalPages / actualStudyDays));
       } else {
         setCalculatedPages(null);
       }
     } else {
       setCalculatedPages(null);
     }
-  }, [formData.startPage, formData.endPage, formData.startDate, formData.endDate]);
+  }, [formData.startPage, formData.endPage, formData.startDate, formData.endDate, formData.studyDays]);
 
   // 종료일 자동 계산 (하루 공부 시간 기반)
   useEffect(() => {
