@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { VideoFormData, VideoMaterial } from '../types';
 import { parseVideoText, formatDuration } from '../utils/videoParser';
+import { dateUtils } from '../utils/scheduler';
 
 interface VideoModalProps {
   isOpen: boolean;
@@ -139,20 +140,25 @@ export function VideoModal({ isOpen, onClose, onSubmit, editMaterial }: VideoMod
 
     const start = new Date(formData.startDate);
     const end = new Date(formData.endDate);
-    const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    if (totalDays <= 0) return null;
+    // 학습 기간 내에서 실제 학습 가능한 날 수 계산
+    const dateRange = dateUtils.getDateRange(start, end);
+    const actualStudyDays = dateRange.filter((date) =>
+      formData.studyDays.includes(date.getDay())
+    ).length;
 
-    const sectionsPerDay = Math.ceil(parsedData.totalCount / totalDays);
-    const minutesPerDay = Math.ceil(parsedData.totalDuration / totalDays);
+    if (actualStudyDays <= 0) return null;
+
+    const sectionsPerDay = Math.ceil(parsedData.totalCount / actualStudyDays);
+    const minutesPerDay = Math.ceil(parsedData.totalDuration / actualStudyDays);
 
     return {
       sectionsPerDay,
       minutesPerDay,
       timePerDay: formatDuration(minutesPerDay),
-      totalDays,
+      totalDays: actualStudyDays,
     };
-  }, [parsedData, formData.startDate, formData.endDate]);
+  }, [parsedData, formData.startDate, formData.endDate, formData.studyDays]);
 
   // 휴리스틱 #3: ESC 키로 모달 닫기
   useEffect(() => {
