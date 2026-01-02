@@ -328,13 +328,17 @@ export function generateWeeklyPlan(
 // 진행도 계산
 export function calculateProgress(material: AnyLearningMaterial): number {
   if (material.type === 'book') {
-    return Math.min(Math.round((material.currentPage / material.totalPages) * 100), 100);
+    // currentPage는 startPage - 1에서 시작하므로
+    // 진행도 = (현재 읽은 페이지 수) / (전체 읽어야 할 페이지 수) * 100
+    const pagesRead = material.currentPage - (material.startPage - 1);
+    const progress = (pagesRead / material.totalPages) * 100;
+    return Math.min(Math.max(Math.round(progress), 0), 100);
   }
 
   if (material.type === 'video') {
     const totalSections = material.sections.length;
     if (totalSections === 0) return 0;
-    return Math.round((material.currentProgress / totalSections) * 100);
+    return Math.min(Math.round((material.currentProgress / totalSections) * 100), 100);
   }
 
   return 0;

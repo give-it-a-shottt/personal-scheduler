@@ -209,11 +209,69 @@ function App() {
       setCompletedTasks(newSet);
     }
 
-    // 책 진행도 업데이트
+    // 진행도 업데이트
     const material = materials.find((m) => m.id === materialId);
-    if (material && material.type === 'book') {
-      // 로직 간단화: 여기서는 단순히 저장만 함
-      // 실제로는 완료된 페이지를 계산해서 업데이트해야 함
+    if (material) {
+      // 해당 날짜의 과제 찾기
+      const task = weeklyPlan.days
+        .find(day => day.date === date)
+        ?.tasks.find(t => t.materialId === materialId);
+
+      if (task) {
+        if (material.type === 'book' && task.endPage) {
+          // 책: 완료된 경우 currentPage를 업데이트, 미완료 시에도 이전 진행도로 조정
+          const newCurrentPage = completed
+            ? Math.max(material.currentPage, task.endPage)
+            : task.startPage ? task.startPage - 1 : material.currentPage;
+
+          const updatedBook = {
+            ...material,
+            currentPage: newCurrentPage,
+            updatedAt: new Date().toISOString(),
+          };
+
+          // 상태 업데이트
+          setMaterials(materials.map(m => m.id === materialId ? updatedBook : m));
+
+          // 스토리지에 저장
+          await materialStorage.update(materialId, updatedBook);
+        } else if (material.type === 'video') {
+          // 동영상: 완료된 섹션 수를 계산
+          // 해당 날짜까지의 모든 완료된 과제를 확인하여 진행도 계산
+          const videoStart = new Date(material.startDate);
+          const currentDate = new Date(date);
+          const dateRange = [];
+          for (let d = new Date(videoStart); d <= currentDate; d.setDate(d.getDate() + 1)) {
+            dateRange.push(new Date(d));
+          }
+
+          // 완료된 학습일 수 계산
+          const completedStudyDays = dateRange.filter(d => {
+            const dayOfWeek = d.getDay();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            return material.studyDays.includes(dayOfWeek) &&
+                   (completedTasks.has(`${materialId}-${dateStr}`) || (dateStr === date && completed));
+          }).length;
+
+          // 진행도 = 완료된 학습일 수 * 하루 섹션 수 (최대값은 전체 섹션 수)
+          const newProgress = Math.min(
+            Math.floor(completedStudyDays * material.sectionsPerDay),
+            material.sections.length
+          );
+
+          const updatedVideo = {
+            ...material,
+            currentProgress: newProgress,
+            updatedAt: new Date().toISOString(),
+          };
+
+          // 상태 업데이트
+          setMaterials(materials.map(m => m.id === materialId ? updatedVideo : m));
+
+          // 스토리지에 저장
+          await materialStorage.update(materialId, updatedVideo);
+        }
+      }
     }
   };
 
